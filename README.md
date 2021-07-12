@@ -3,8 +3,9 @@ Tiny converter script from ldap to json.
 
 ## Config
 The ldap-to-json script requires a `.env` file in the directory it is being ran from. You need to take care of the following variables:
+
 |Variable|Description|
-|-|-|-|
+|---|---|
 |LDAP_SERVER_URL|The url to the LDAP server, e.g. `ldap(s)://your-ldap.server`|
 |LDAP_BIND_DN|The DN used to bind with|
 |LDAP_BIND_PWD|The passwsord used to bind with|
