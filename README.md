@@ -15,9 +15,10 @@ The ldap-to-json script requires a `.env` file in the directory it is being ran 
 |CA_CERT|CA to trust (only when using LDAPS)|
 
 ## Testing with LDAP
+To quickly test against a live LDAP you can use the following snippets.
+
 ```bash
 docker run --env LDAP_TLS_VERIFY_CLIENT=try --hostname openldap.localtest.me -p 389:389 -p 636:636 --name my-openldap-container --detach osixia/openldap:1.5.0
-node testing/create-entries.js
 ```
 
 Using the following `.env` file:
