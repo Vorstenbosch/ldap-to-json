@@ -1,9 +1,28 @@
 require('dotenv').config()
-const ldap = require('ldapjs');
+const fs = require('fs')
+const ldap = require('ldapjs')
+const assert = require('assert')
 
-const client = ldap.createClient({
-    url: [process.env.LDAP_SERVER_URL]
-});
+var debug = false
+var client
+
+if (process.env.DEBUG == 'true') {
+    debug = true
+}
+
+debug && console.debug(`server url: ${process.env.LDAP_SERVER_URL}`)
+
+if (process.env.LDAP_SERVER_URL.startsWith('ldaps://')) {
+    const tlsCert = fs.readFileSync(process.env.CA_CERT, 'utf8')
+    client = ldap.createClient({
+        url: [process.env.LDAP_SERVER_URL],
+        tlsOptions: {ca: tlsCert}
+    })
+} else {
+    client = ldap.createClient({
+        url: [process.env.LDAP_SERVER_URL]
+    })
+}
 
 client.on('error', (err) => {
     assert.ifError(err)
@@ -11,30 +30,50 @@ client.on('error', (err) => {
 
 client.bind(process.env.LDAP_BIND_DN, process.env.LDAP_BIND_PWD, (err) => {
     assert.ifError(err)
-});
+})
 
 const opts = {
     filter: process.env.SEARCH_FILTER,
     scope: 'sub',
     attributes: []
-};
+}
 
-client.search(env.process.SEARCH_BASE, opts, (err, res) => {
-    assert.ifError(err);
-    
+let searchResult = {}
+searchResult.ldapServer = process.env.LDAP_SERVER_URL
+searchResult.searchFilter = process.env.SEARCH_FILTER
+searchResult.searchBase = process.env.SEARCH_BASE
+searchResult.objectsFound = []
+
+client.search(process.env.SEARCH_BASE, opts, (err, res) => {
+    assert.ifError(err)
+
     res.on('searchRequest', (searchRequest) => {
-        console.log('searchRequest: ', searchRequest.messageID);
-    });
+        debug && console.debug('searchRequest: ', searchRequest.messageID)
+    })
+
     res.on('searchEntry', (entry) => {
-        console.log('entry: ' + JSON.stringify(entry.object));
-    });
+        debug && console.debug(`Found entry '${JSON.stringify(entry, null, 2)}'`)
+        searchResult.objectsFound.push(entry)
+    })
+
     res.on('searchReference', (referral) => {
-        console.log('referral: ' + referral.uris.join());
-    });
+        debug && console.debug('referral: ' + referral.uris.join())
+    })
+
     res.on('error', (err) => {
-        console.error('error: ' + err.message);
-    });
+        console.error('search error: ' + err.message)
+    })
+
     res.on('end', (result) => {
-        console.log('status: ' + result.status);
-    });
-});
+        debug && console.debug('status: ' + result.status)
+
+        let data = JSON.stringify(searchResult, null, 2)
+        fs.writeFile('objectsFound.json', data, function (err) {
+            assert.ifError(err)
+
+            client.unbind((err) => {
+                assert.ifError(err)
+            })
+        })
+    })
+})
